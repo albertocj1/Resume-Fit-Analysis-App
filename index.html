@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Resume Fit Analyzer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23172230'/%3E%3Crect x='7' y='8' width='14' height='3' rx='1.5' fill='%23C9D2DC'/%3E%3Crect x='5.5' y='13.5' width='21' height='6' rx='2' fill='%23FFE45C'/%3E%3Crect x='7' y='22' width='11' height='3' rx='1.5' fill='%23C9D2DC'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
@@ -427,6 +429,7 @@
   const ENDPOINT = "https://n8n-u7yp.srv1959326.hstgr.cloud/webhook/resume-fit";
   const MAX_BYTES = 5 * 1024 * 1024;
   const TIMEOUT_MS = 90 * 1000;
+  const COACH_URL = "https://albertocj1.github.io/Interview-Prep-Coach/";
   const LOADING_STEPS = [
     "Reading the resume",
     "Finding the job's requirements",
@@ -660,7 +663,19 @@ Nice to have
       drop.classList.remove("has-file");
       fileInput.focus();
     });
-    actions.append(copyBtn, againBtn);
+    const coachBtn = el("button", "primary", (data.missing_skills || []).length ? "Practice the gaps" : "Practice interview questions");
+    coachBtn.type = "button";
+    coachBtn.addEventListener("click", () => {
+      try {
+        localStorage.setItem("rfa-handoff", JSON.stringify({
+          job_description: jd.value.trim(),
+          missing_skills: data.missing_skills || [],
+          saved_at: Date.now()
+        }));
+      } catch {}
+      window.location.href = COACH_URL;
+    });
+    actions.append(coachBtn, copyBtn, againBtn);
 
     result.append(row, scale, breakdown, sSum, sMatch, sMiss, sSug, actions);
     if (isDemo) result.append(el("p", "demo-note", "Sample result. Set ENDPOINT in the page script to connect your n8n workflow."));
