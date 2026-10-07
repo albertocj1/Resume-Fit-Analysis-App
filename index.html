@@ -305,7 +305,7 @@
           <div class="doc-icon" aria-hidden="true"></div>
           <div class="drop-text">
             <strong id="fileName">Choose a PDF or drop it here</strong>
-            <span id="fileMeta">Text-based PDFs work best</span>
+            <span id="fileMeta">Scanned PDFs work too</span>
           </div>
           <input type="file" id="resume" name="resume" accept="application/pdf,.pdf">
         </div>
@@ -333,7 +333,7 @@
   /* ---------- Config ----------
      Paste your n8n Production webhook URL here.
      Leave it empty to preview the page with a sample result. */
-  const ENDPOINT = "";
+  const ENDPOINT = "https://n8n-u7yp.srv1959326.hstgr.cloud/webhook/resume-fit";
   const MAX_BYTES = 5 * 1024 * 1024;
 
   document.getElementById("year").textContent = new Date().getFullYear();
@@ -500,7 +500,7 @@
     againBtn.addEventListener("click", () => {
       selectedFile = null; fileInput.value = "";
       fileName.textContent = "Choose a PDF or drop it here";
-      fileMeta.textContent = "Text-based PDFs work best";
+      fileMeta.textContent = "Scanned PDFs work too";
       drop.classList.remove("has-file");
       fileInput.focus();
     });
@@ -555,7 +555,7 @@
       if (!res.ok) throw new Error(`The server responded with status ${res.status}. Check that the n8n workflow is active.`);
       let data = await res.json();
       if (Array.isArray(data)) data = data[0];
-      if (!data || data.fit_score == null) throw new Error("The response had no fit score. If the PDF is a scanned image, export a text-based PDF and try again.");
+      if (!data || data.fit_score == null) throw new Error("The response had no fit score. Check the latest execution in n8n to see which step failed.");
       render(data, false);
     } catch (err) {
       const msg = err instanceof TypeError
