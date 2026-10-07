@@ -71,6 +71,20 @@
     padding: clamp(24px, 5vw, 56px) clamp(16px, 4vw, 40px) 64px;
   }
 
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding-bottom: 14px; margin-bottom: clamp(24px, 4vw, 40px);
+    border-bottom: 1px solid var(--line); font-size: 0.9375rem;
+  }
+  .wordmark { font-weight: 800; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 8px; }
+  .wordmark::before {
+    content: ""; width: 14px; height: 10px; border-radius: 2px 5px 2px 6px;
+    background: var(--highlight); box-shadow: inset 0 0 0 1.5px var(--ink);
+  }
+  .byline { color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .topbar a { color: inherit; text-underline-offset: 3px; }
+  .topbar a:hover { color: var(--accent); }
+
   header { max-width: 40rem; margin-bottom: clamp(24px, 4vw, 40px); }
   h1 {
     font-size: clamp(2rem, 5vw, 3.25rem);
@@ -145,8 +159,8 @@
   .drop-text strong { display: block; font-weight: 600; word-break: break-all; }
   .drop-text span { color: var(--muted); font-size: 0.875rem; }
 
+  .form-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   button.primary {
-    align-self: flex-start;
     padding: 13px 26px;
     font: inherit;
     font-weight: 600;
@@ -168,6 +182,29 @@
     min-height: 420px;
     border: 1px solid var(--line);
   }
+  .intro { display: flex; flex-direction: column; gap: 28px; }
+  .intro-text { color: var(--muted); max-width: 30rem; }
+  .intro-text strong { color: var(--ink); font-size: 1.25rem; display: block; margin-bottom: 4px; }
+  .ghost-preview {
+    opacity: .38; pointer-events: none; user-select: none;
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+            mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  }
+  .ghost-preview .scale { margin: 18px 0 22px; }
+  .ghost-preview h2 { margin-top: 0; }
+
+  .how { margin-top: clamp(48px, 7vw, 80px); }
+  .how-title { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.015em; margin: 0 0 20px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 3vw, 32px); }
+  @media (max-width: 720px) { .steps { grid-template-columns: 1fr; } }
+  .steps li { border-top: 2px solid var(--ink); padding-top: 12px; }
+  .step-num { font-size: 0.8125rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .step-title { display: block; font-weight: 600; font-size: 1.0625rem; margin: 2px 0 4px; }
+  .steps p { margin: 0; color: var(--muted); font-size: 0.9375rem; }
+  .built { margin: 24px 0 0; color: var(--muted); font-size: 0.9375rem; }
+  .built a { color: var(--ink); text-underline-offset: 3px; }
+  .built a:hover { color: var(--accent); }
+
   .empty, .loading {
     height: 100%;
     min-height: 360px;
@@ -261,6 +298,12 @@
     background: transparent; color: var(--ink); border: 1.5px solid var(--line);
   }
   .error-box strong { color: var(--band-no); }
+  .error-detail { margin: 12px 0 0; font-size: 0.8125rem; color: var(--muted); word-break: break-word; }
+
+
+  .loading-step { transition: opacity .25s; }
+  .loading-count { margin-top: 10px; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+  html { scroll-padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
 
   .demo-note { font-size: 0.8125rem; color: var(--muted); margin-top: 14px; }
 
@@ -287,6 +330,11 @@
 </head>
 <body>
 <div class="page">
+  <nav class="topbar" aria-label="Site">
+    <span><span class="wordmark">Resume Fit Analyzer</span><span class="byline">by <a href="https://cjalberto.vercel.app">Christian Joshua Alberto</a></span></span>
+    <a href="https://github.com/albertocj1/Resume-Fit-Analysis-App">View on GitHub</a>
+  </nav>
+
   <header>
     <h1>How well does this resume fit the role?</h1>
     <p>Paste a job description and add a resume. You'll get a fit score, a short summary, and a recommendation in about 20 seconds.</p>
@@ -312,16 +360,59 @@
       </div>
 
       <p class="form-error" id="formError" role="alert"></p>
-      <button type="submit" class="primary" id="submitBtn">Analyze fit</button>
+      <div class="form-actions">
+        <button type="submit" class="primary" id="submitBtn">Analyze fit</button>
+        <button type="button" class="ghost" id="sampleBtn">Try a sample</button>
+      </div>
     </form>
 
     <div class="result" id="result" aria-live="polite">
-      <div class="empty">
-        <strong>Your analysis will appear here</strong>
-        Matched skills get highlighted, gaps get outlined, and the score lands on the scale below each result.
+      <div class="intro">
+        <div class="intro-text">
+          <strong>Your analysis will appear here</strong>
+          No job description or resume handy? Click <b>Try a sample</b> to see a full result.
+        </div>
+        <div class="ghost-preview" aria-hidden="true">
+          <div class="score-row">
+            <div class="score-num">82<small>/100</small></div>
+            <div class="verdict"><div class="verdict-name" style="color: var(--band-good)">Good Fit</div></div>
+          </div>
+          <div class="scale">
+            <div class="scale-track">
+              <span class="no"></span><span class="partial"></span><span class="good on"></span><span class="strong"></span>
+              <div class="marker" style="left: 82%"></div>
+            </div>
+          </div>
+          <h2>Matched skills</h2>
+          <ul class="skills matched"><li>Python</li><li>REST APIs</li><li>SQL</li><li>Workflow automation</li></ul>
+          <h2 style="margin-top: 18px">Missing skills</h2>
+          <ul class="skills missing"><li>AWS</li><li>3+ years experience</li></ul>
+        </div>
       </div>
     </div>
   </div>
+
+  <section class="how" aria-labelledby="howTitle">
+    <h2 class="how-title" id="howTitle">How it works</h2>
+    <ol class="steps">
+      <li>
+        <span class="step-num">01</span>
+        <span class="step-title">Paste the job description</span>
+        <p>Include the requirements and nice-to-haves. The more complete the posting, the sharper the comparison.</p>
+      </li>
+      <li>
+        <span class="step-num">02</span>
+        <span class="step-title">Upload a resume</span>
+        <p>Any PDF works, including scanned copies. The file goes to an n8n workflow that sends it to Google Gemini.</p>
+      </li>
+      <li>
+        <span class="step-num">03</span>
+        <span class="step-title">Get the fit analysis</span>
+        <p>Gemini checks each requirement against the resume and returns a score, matched and missing skills, and next steps.</p>
+      </li>
+    </ol>
+    <p class="built">Built with n8n and Google Gemini. <a href="https://github.com/albertocj1/Resume-Fit-Analysis-App">View the source on GitHub</a></p>
+  </section>
 
   <footer class="site-footer">
     <p>© <span id="year"></span> Christian Joshua Alberto. All rights reserved.</p>
@@ -335,6 +426,40 @@
      Leave it empty to preview the page with a sample result. */
   const ENDPOINT = "https://n8n-u7yp.srv1959326.hstgr.cloud/webhook/resume-fit";
   const MAX_BYTES = 5 * 1024 * 1024;
+  const TIMEOUT_MS = 90 * 1000;
+  const LOADING_STEPS = [
+    "Reading the resume",
+    "Finding the job's requirements",
+    "Matching skills and experience",
+    "Scoring the fit",
+    "Writing the summary"
+  ];
+  const SAMPLE_RESUME_URL = "sample-resume.pdf";
+  const SAMPLE_JD = `Automation Engineer (Mid-level) — Makati City, Hybrid
+
+We're looking for an Automation Engineer to design and maintain workflow automations that connect our sales, finance, and operations systems.
+
+Responsibilities
+- Build and maintain automated workflows using n8n or Make
+- Integrate third-party services through REST APIs and webhooks
+- Write Python scripts for data cleaning, reconciliation, and reporting
+- Add AI features (LLM APIs) to internal tools, such as document classification and summarization
+- Monitor workflows, fix failures, and document processes for non-technical teams
+
+Requirements
+- At least 2 years of experience in automation, integration, or backend development
+- Strong Python and SQL skills
+- Hands-on experience with n8n, Make, or Zapier
+- Experience working with REST APIs and JSON
+- Bachelor's degree in IT, Computer Science, or a related field
+
+Nice to have
+- Experience with AWS or Google Cloud
+- Docker and CI/CD pipelines
+- Experience with LLM APIs such as OpenAI or Gemini`;
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let loadingTimer = null;
 
   document.getElementById("year").textContent = new Date().getFullYear();
 
@@ -380,18 +505,48 @@
     return n;
   }
 
-  function showLoading() {
-    result.innerHTML = "";
-    const box = el("div", "loading");
-    box.append(el("strong", null, "Reading the resume"), document.createTextNode("Comparing it against the job description."), el("div", "scan"));
-    result.append(box);
+  function stopLoading() {
+    if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
   }
 
-  function showError(message) {
+  function showLoading() {
+    stopLoading();
+    result.innerHTML = "";
+    const box = el("div", "loading");
+    const step = el("strong", "loading-step", LOADING_STEPS[0]);
+    const count = el("div", "loading-count", "0s");
+    box.append(step, document.createTextNode("This usually takes 15–30 seconds."), el("div", "scan"), count);
+    result.append(box);
+
+    const started = Date.now();
+    let i = 0;
+    loadingTimer = setInterval(() => {
+      const secs = Math.floor((Date.now() - started) / 1000);
+      count.textContent = secs + "s";
+      // Advance the step every 5 seconds, then hold on the last one
+      const next = Math.min(Math.floor(secs / 5), LOADING_STEPS.length - 1);
+      if (next !== i) {
+        i = next;
+        step.style.opacity = 0;
+        setTimeout(() => { step.textContent = LOADING_STEPS[i]; step.style.opacity = 1; }, reduceMotion ? 0 : 250);
+      }
+    }, 1000);
+  }
+
+  function showError(message, detail) {
+    stopLoading();
     result.innerHTML = "";
     const box = el("div", "empty error-box");
     box.append(el("strong", null, "The analysis didn't finish"), document.createTextNode(message));
+    if (detail) box.append(el("p", "error-detail", "Details: " + detail));
     result.append(box);
+  }
+
+  function scrollToResult() {
+    // On narrow screens the result panel sits below the form, so bring it into view
+    if (window.matchMedia("(max-width: 860px)").matches) {
+      result.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    }
   }
 
   const BANDS = [
@@ -413,6 +568,7 @@
     const score = Math.max(0, Math.min(100, Math.round(Number(data.fit_score) || 0)));
     const band = bandFor(score);
     const verdictName = data.recommendation || band.name;
+    stopLoading();
     result.innerHTML = "";
 
     // Score + verdict
@@ -531,6 +687,23 @@
     ]
   };
 
+  const sampleBtn = document.getElementById("sampleBtn");
+  sampleBtn.addEventListener("click", async () => {
+    sampleBtn.disabled = true;
+    formError.textContent = "";
+    try {
+      const res = await fetch(SAMPLE_RESUME_URL);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      jd.value = SAMPLE_JD;
+      setFile(new File([blob], "sample-resume.pdf", { type: "application/pdf" }));
+      form.requestSubmit();
+    } catch {
+      formError.textContent = "Couldn't load the sample resume. Make sure sample-resume.pdf is next to index.html.";
+      sampleBtn.disabled = false;
+    }
+  });
+
   form.addEventListener("submit", async e => {
     e.preventDefault();
     const problem = validate();
@@ -538,8 +711,13 @@
     if (problem) return;
 
     submitBtn.disabled = true;
+    sampleBtn.disabled = true;
     submitBtn.textContent = "Analyzing…";
     showLoading();
+    scrollToResult();
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
       if (!ENDPOINT) {
@@ -551,19 +729,38 @@
       body.append("job_description", jd.value.trim());
       body.append("resume", selectedFile, selectedFile.name);
 
-      const res = await fetch(ENDPOINT, { method: "POST", body });
-      if (!res.ok) throw new Error(`The server responded with status ${res.status}. Check that the n8n workflow is active.`);
+      const res = await fetch(ENDPOINT, { method: "POST", body, signal: controller.signal });
+      if (!res.ok) {
+        const err = new Error("The analysis service returned an error. Please try again in a moment.");
+        err.detail = `HTTP ${res.status}`;
+        throw err;
+      }
       let data = await res.json();
       if (Array.isArray(data)) data = data[0];
-      if (!data || data.fit_score == null) throw new Error("The response had no fit score. Check the latest execution in n8n to see which step failed.");
+      if (data && data.error) {
+        const err = new Error("The AI model couldn't finish the analysis. Please try again in a moment.");
+        err.detail = data.error;
+        throw err;
+      }
+      if (!data || data.fit_score == null) {
+        const err = new Error("The analysis came back without a score. Please try again.");
+        err.detail = "Response had no fit_score.";
+        throw err;
+      }
       render(data, false);
     } catch (err) {
-      const msg = err instanceof TypeError
-        ? "Couldn't reach the analysis service. Check the webhook URL and that CORS allows this site."
-        : err.message;
-      showError(msg);
+      if (err.name === "AbortError") {
+        showError("This is taking longer than expected. Please try again in a moment.", `No response after ${TIMEOUT_MS / 1000} seconds.`);
+      } else if (err instanceof TypeError) {
+        showError("Couldn't reach the analysis service. Check your connection and try again.", err.message);
+      } else {
+        showError(err.message, err.detail);
+      }
     } finally {
+      clearTimeout(timeout);
+      stopLoading();
       submitBtn.disabled = false;
+      sampleBtn.disabled = false;
       submitBtn.textContent = "Analyze fit";
     }
   });
