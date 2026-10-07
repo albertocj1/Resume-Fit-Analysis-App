@@ -1,0 +1,247 @@
+{
+  "name": "Resume Fit Analyzer (Gemini + Lite fallback)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "resume-fit",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "4b09f484-9630-43cc-aa5e-990e9ebac91c",
+      "name": "Resume Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        272,
+        368
+      ],
+      "webhookId": "resume-fit-analyzer-gemini"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst jd = item.json.body?.job_description ?? '';\n\n// Read the uploaded PDF and send it to Gemini directly (scanned PDFs work too)\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'resume');\nconst pdfBase64 = buf.toString('base64');\n\nconst systemPrompt = `You are an experienced recruiter who screens candidates across all industries. Evaluate the attached resume against the job description objectively and consistently.\n\nPROCESS\n1. Identify the role's field, seniority level, and requirements from the job description. Separate must-haves (stated as required, minimum, or mandatory) from nice-to-haves (preferred, a plus, bonus).\n2. For each requirement, look for concrete evidence in the resume: job titles, responsibilities, projects, tools, certifications, licenses, education, and measurable results.\n3. Count equivalent evidence as a match (for example, PostgreSQL satisfies SQL, and managing a 10-person team satisfies leadership). Do not count a skill that is only implied or never shown.\n4. Judge experience by relevance and recency, not just total years. For entry-level roles, count internships, academic projects, and freelance work as relevant experience.\n\nSCORING\n- Score skills, experience, and education from 0 to 100 each, then set fit_score to the weighted average: skills 50%, experience 35%, education 15%, rounded to a whole number.\n- If any must-have is missing (such as a required license, degree, or minimum years of experience), list it in missing_skills and cap fit_score at 69.\n- Use the full range. 90+ means the candidate meets every must-have and most nice-to-haves with strong evidence. Around 50 means roughly half the requirements are met. Do not inflate scores.\n- Recommendation bands: 85-100 Strong Fit, 70-84 Good Fit, 50-69 Partial Fit, below 50 Not a Fit. The recommendation must match the band of the final fit_score.\n\nFAIRNESS\nIgnore name, age, gender, photo, marital status, religion, nationality, address, and school prestige. Judge only job-relevant qualifications.\n\nOUTPUT\n- matched_skills and missing_skills: short labels (1-4 words each) taken from the job's requirements, at most 10 each, must-haves first.\n- summary: 3-4 sentences covering the strongest matches, the biggest gaps, and overall fit.\n- recommendation_reason: 1-2 sentences naming the deciding factor.\n- suggestions: up to 3 specific actions tied to this resume and this job (for example, \"Add the PRC license number to the header\"), not generic advice.\n- Write in English, even if the resume or job description is in another language.\n- If the attached file is not a resume, set every score to 0, set recommendation to \"Not a Fit\", leave the skill lists empty, and say so in the summary.`;\n\nconst userText = `JOB DESCRIPTION:\\n${jd}\\n\\nAnalyze the attached resume against this job description.`;\n\nconst RECS = ['Strong Fit', 'Good Fit', 'Partial Fit', 'Not a Fit'];\n\nconst payload = {\n  systemInstruction: { parts: [{ text: systemPrompt }] },\n  contents: [{\n    role: 'user',\n    parts: [\n      { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },\n      { text: userText }\n    ]\n  }],\n  generationConfig: {\n    temperature: 0.2,\n    responseMimeType: 'application/json',\n    responseSchema: {\n      type: 'OBJECT',\n      properties: {\n        fit_score: { type: 'INTEGER' },\n        breakdown: {\n          type: 'OBJECT',\n          properties: {\n            skills: { type: 'INTEGER' },\n            experience: { type: 'INTEGER' },\n            education: { type: 'INTEGER' }\n          },\n          required: ['skills', 'experience', 'education']\n        },\n        matched_skills: { type: 'ARRAY', items: { type: 'STRING' } },\n        missing_skills: { type: 'ARRAY', items: { type: 'STRING' } },\n        summary: { type: 'STRING' },\n        recommendation: { type: 'STRING', enum: RECS },\n        recommendation_reason: { type: 'STRING' },\n        suggestions: { type: 'ARRAY', items: { type: 'STRING' } }\n      },\n      required: ['fit_score', 'breakdown', 'matched_skills', 'missing_skills', 'summary', 'recommendation', 'recommendation_reason', 'suggestions']\n    }\n  }\n};\n\nreturn [{ json: { payload } }];"
+      },
+      "id": "7f17d62e-d602-49b0-820f-03e44af68540",
+      "name": "Build Gemini Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a3c1e0d2-1111-4a00-8000-000000000001",
+              "name": "model",
+              "value": "gemini-3.5-flash",
+              "type": "string"
+            },
+            {
+              "id": "a3c1e0d2-1111-4a00-8000-000000000002",
+              "name": "fallback_model",
+              "value": "gemini-3.5-flash-lite",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "1c9dbeb3-c013-48eb-81f4-d7f40d7ba024",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $json.model }}:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "9fee533c-9550-4309-8c71-baa19b5768eb",
+      "name": "LLM Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        368
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "U2t5GMfT3x1mmmLF",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $('Config').first().json.fallback_model }}:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Config').first().json.payload) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "199667cc-994a-4c55-bd9c-93928b547593",
+      "name": "LLM Fallback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        576
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "U2t5GMfT3x1mmmLF",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handles both paths: a normal Gemini response, or an error passed through from LLM Fallback.\nconst resp = $input.first().json;\nconst cfg = $('Config').first().json;\n\nconst fail = (msg) => [{ json: { fit_score: null, error: msg } }];\n\nif (resp.error) {\n  const msg = resp.error.message || JSON.stringify(resp.error);\n  return fail(`Both ${cfg.model} and ${cfg.fallback_model} failed: ${msg}`);\n}\n\nconst cand = resp.candidates?.[0];\nif (!cand) return fail('Gemini returned no candidates: ' + JSON.stringify(resp.promptFeedback || resp).slice(0, 300));\n\nconst raw = (cand.content?.parts || [])\n  .filter(p => typeof p.text === 'string' && !p.thought)\n  .map(p => p.text).join('').trim()\n  .replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '');\n\nlet r;\ntry { r = JSON.parse(raw); }\ncatch (e) { return fail(`Gemini response was not valid JSON (finishReason: ${cand.finishReason}).`); }\n\nreturn [{ json: {\n  fit_score: r.fit_score ?? null,\n  breakdown: r.breakdown ?? {},\n  matched_skills: r.matched_skills ?? [],\n  missing_skills: r.missing_skills ?? [],\n  summary: r.summary ?? '',\n  recommendation: r.recommendation ?? '',\n  recommendation_reason: r.recommendation_reason ?? '',\n  suggestions: r.suggestions ?? [],\n  model: resp.modelVersion || cfg.model   // the model that actually answered (primary or fallback)\n} }];"
+      },
+      "id": "921e0703-423c-4121-942b-200abeb58173",
+      "name": "Clean Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "2c5ba6a3-ec50-425a-a881-be90f1e8feb4",
+      "name": "Respond to Website",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1392,
+        368
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Resume Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Gemini Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Gemini Request": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "LLM Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Analysis": {
+      "main": [
+        [
+          {
+            "node": "Clean Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Fallback": {
+      "main": [
+        [
+          {
+            "node": "Clean Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b14d2feb-b84a-48d3-a13b-661d3a6aa6df",
+  "meta": {
+    "instanceId": "982133a88ce6d6cda1c49e664427962b74260ca32af2b85e7026c5ab94959c7e"
+  },
+  "nodeGroups": [],
+  "id": "2yDMO5tRFKIILEMx",
+  "tags": []
+}
