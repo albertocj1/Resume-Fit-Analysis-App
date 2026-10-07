@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Resume Fit Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Tokens ---------- */
+  :root {
+    --paper: #EAEFF3;
+    --sheet: #FFFFFF;
+    --ink: #172230;
+    --muted: #5A6777;
+    --line: #C9D2DC;
+    --accent: #2946C4;
+    --accent-ink: #FFFFFF;
+    --highlight: #FFE45C;
+    --highlight-ink: #172230;
+    --band-no: #B8432F;
+    --band-partial: #C98A0B;
+    --band-good: #3B8758;
+    --band-strong: #2946C4;
+    --sans: "Bricolage Grotesque", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --r-sm: 6px;
+    --r-lg: 14px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #11171F;
+      --sheet: #1A222D;
+      --ink: #E6ECF2;
+      --muted: #9AA7B6;
+      --line: #2F3A48;
+      --accent: #7E97FF;
+      --accent-ink: #0E1530;
+      --highlight: #E8CF45;
+      --highlight-ink: #161A10;
+      --band-no: #E07A64;
+      --band-partial: #E2AE3C;
+      --band-good: #6CC08A;
+      --band-strong: #7E97FF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #11171F; --sheet: #1A222D; --ink: #E6ECF2; --muted: #9AA7B6; --line: #2F3A48;
+    --accent: #7E97FF; --accent-ink: #0E1530; --highlight: #E8CF45; --highlight-ink: #161A10;
+    --band-no: #E07A64; --band-partial: #E2AE3C; --band-good: #6CC08A; --band-strong: #7E97FF;
+  }
+
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: clamp(24px, 5vw, 56px) clamp(16px, 4vw, 40px) 64px;
+  }
+
+  header { max-width: 40rem; margin-bottom: clamp(24px, 4vw, 40px); }
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 0 0 12px;
+  }
+  header p { margin: 0; color: var(--muted); font-size: 1.0625rem; max-width: 34rem; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: clamp(16px, 3vw, 32px);
+    align-items: start;
+  }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ---------- Input side ---------- */
+  form { display: flex; flex-direction: column; gap: 20px; }
+  label.field-label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .hint { color: var(--muted); font-size: 0.875rem; font-weight: 400; }
+
+  textarea {
+    width: 100%;
+    min-height: 260px;
+    resize: vertical;
+    padding: 14px 16px;
+    font: inherit;
+    font-size: 0.9375rem;
+    color: var(--ink);
+    background: var(--sheet);
+    border: 1.5px solid var(--line);
+    border-radius: var(--r-sm);
+  }
+  textarea:focus-visible, .drop:focus-within, button:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .drop {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 16px;
+    background: var(--sheet);
+    border: 1.5px dashed var(--line);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .drop.dragging { border-color: var(--accent); border-style: solid; }
+  .drop.has-file { border-style: solid; }
+  .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .doc-icon {
+    flex: none; width: 34px; height: 42px;
+    border: 1.5px solid var(--ink);
+    border-radius: 3px;
+    position: relative;
+    background:
+      linear-gradient(var(--line), var(--line)) 7px 14px / 16px 2px no-repeat,
+      linear-gradient(var(--line), var(--line)) 7px 20px / 18px 2px no-repeat,
+      linear-gradient(var(--line), var(--line)) 7px 26px / 12px 2px no-repeat;
+  }
+  .drop.has-file .doc-icon {
+    background:
+      linear-gradient(var(--highlight), var(--highlight)) 5px 12px / 20px 6px no-repeat,
+      linear-gradient(var(--line), var(--line)) 7px 22px / 18px 2px no-repeat,
+      linear-gradient(var(--line), var(--line)) 7px 28px / 12px 2px no-repeat;
+  }
+  .drop-text strong { display: block; font-weight: 600; word-break: break-all; }
+  .drop-text span { color: var(--muted); font-size: 0.875rem; }
+
+  button.primary {
+    align-self: flex-start;
+    padding: 13px 26px;
+    font: inherit;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  button.primary:disabled { opacity: .55; cursor: progress; }
+  .form-error { color: var(--band-no); font-size: 0.9375rem; margin: -6px 0 0; min-height: 1.5em; }
+
+  /* ---------- Result side ---------- */
+  .result {
+    background: var(--sheet);
+    border-radius: var(--r-lg);
+    padding: clamp(20px, 3.5vw, 36px);
+    min-height: 420px;
+    border: 1px solid var(--line);
+  }
+  .empty, .loading {
+    height: 100%;
+    min-height: 360px;
+    display: flex; flex-direction: column; justify-content: center;
+    color: var(--muted);
+    max-width: 26rem;
+  }
+  .empty strong, .loading strong { color: var(--ink); font-size: 1.25rem; display: block; margin-bottom: 4px; }
+
+  .scan {
+    height: 4px; width: 100%; max-width: 260px; margin-top: 20px;
+    background: var(--line); border-radius: 2px; overflow: hidden; position: relative;
+  }
+  .scan::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 35%;
+    background: var(--highlight);
+    animation: sweep 1.3s ease-in-out infinite;
+  }
+  @keyframes sweep { from { left: -35%; } to { left: 100%; } }
+
+  /* Score */
+  .score-row { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+  .score-num {
+    font-size: clamp(4.5rem, 12vw, 7rem);
+    font-weight: 800;
+    line-height: .85;
+    letter-spacing: -0.05em;
+    font-variant-numeric: tabular-nums;
+  }
+  .score-num small { font-size: .28em; font-weight: 600; letter-spacing: 0; color: var(--muted); margin-left: 4px; }
+  .verdict { padding-bottom: 6px; }
+  .verdict-name { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.015em; line-height: 1.1; }
+  .verdict-reason { color: var(--muted); margin: 4px 0 0; max-width: 30rem; font-size: 0.9375rem; }
+
+  /* Band scale */
+  .scale { margin: 26px 0 30px; }
+  .scale-track { position: relative; display: grid; grid-template-columns: 50fr 20fr 15fr 15fr; gap: 3px; height: 10px; }
+  .scale-track span { border-radius: 2px; opacity: .3; }
+  .scale-track span.on { opacity: 1; }
+  .scale-track .no { background: var(--band-no); }
+  .scale-track .partial { background: var(--band-partial); }
+  .scale-track .good { background: var(--band-good); }
+  .scale-track .strong { background: var(--band-strong); }
+  .marker {
+    position: absolute; top: -6px; width: 3px; height: 22px; background: var(--ink);
+    border-radius: 2px; transform: translateX(-50%);
+    transition: left .9s cubic-bezier(.2,.8,.2,1);
+  }
+  .scale-labels { display: grid; grid-template-columns: 50fr 20fr 15fr 15fr; gap: 3px; font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+
+  /* Breakdown */
+  .breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 30px; }
+  @media (max-width: 480px) { .breakdown { grid-template-columns: 1fr; gap: 12px; } }
+  .metric-head { display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 6px; }
+  .metric-head b { font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; background: var(--paper); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--ink); width: 0; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+
+  h2 { font-size: 1rem; font-weight: 600; margin: 0 0 10px; }
+  section + section { margin-top: 26px; }
+
+  .summary {
+    font-family: var(--serif);
+    font-size: 1.125rem;
+    line-height: 1.65;
+    margin: 0;
+    max-width: 36rem;
+  }
+
+  .skills { display: flex; flex-wrap: wrap; gap: 6px 8px; list-style: none; margin: 0; padding: 0; }
+  .skills li { font-size: 0.9375rem; padding: 2px 8px; border-radius: 3px; }
+  .skills.matched li {
+    background: var(--highlight);
+    color: var(--highlight-ink);
+    /* uneven highlighter edge */
+    border-radius: 2px 6px 3px 7px;
+  }
+  .skills.missing li {
+    border: 1.5px dashed var(--muted);
+    color: var(--muted);
+  }
+  .none { color: var(--muted); font-size: 0.9375rem; margin: 0; }
+
+  .suggestions { margin: 0; padding-left: 1.2em; max-width: 36rem; }
+  .suggestions li + li { margin-top: 6px; }
+
+  .actions { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; gap: 12px; flex-wrap: wrap; }
+  button.ghost {
+    font: inherit; font-weight: 600; font-size: 0.9375rem;
+    padding: 10px 18px; border-radius: 999px; cursor: pointer;
+    background: transparent; color: var(--ink); border: 1.5px solid var(--line);
+  }
+  .error-box strong { color: var(--band-no); }
+
+  .demo-note { font-size: 0.8125rem; color: var(--muted); margin-top: 14px; }
+
+  .site-footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+  .site-footer p { margin: 0; }
+  .site-footer a { color: inherit; text-underline-offset: 3px; }
+  .site-footer a:hover { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scan::after { animation: none; left: 0; width: 100%; opacity: .6; }
+    .marker, .bar i { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>How well does this resume fit the role?</h1>
+    <p>Paste a job description and add a resume. You'll get a fit score, a short summary, and a recommendation in about 20 seconds.</p>
+  </header>
+
+  <div class="layout">
+    <form id="fitForm" novalidate>
+      <div>
+        <label class="field-label" for="jd">Job description</label>
+        <textarea id="jd" name="job_description" placeholder="Paste the full posting: responsibilities, requirements, and nice-to-haves."></textarea>
+      </div>
+
+      <div>
+        <label class="field-label" for="resume">Resume <span class="hint">PDF, up to 5 MB</span></label>
+        <div class="drop" id="drop">
+          <div class="doc-icon" aria-hidden="true"></div>
+          <div class="drop-text">
+            <strong id="fileName">Choose a PDF or drop it here</strong>
+            <span id="fileMeta">Text-based PDFs work best</span>
+          </div>
+          <input type="file" id="resume" name="resume" accept="application/pdf,.pdf">
+        </div>
+      </div>
+
+      <p class="form-error" id="formError" role="alert"></p>
+      <button type="submit" class="primary" id="submitBtn">Analyze fit</button>
+    </form>
+
+    <div class="result" id="result" aria-live="polite">
+      <div class="empty">
+        <strong>Your analysis will appear here</strong>
+        Matched skills get highlighted, gaps get outlined, and the score lands on the scale below each result.
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> Christian Joshua Alberto. All rights reserved.</p>
+    <p><a href="https://cjalberto.vercel.app">cjalberto.vercel.app</a></p>
+  </footer>
+</div>
+
+<script>
+  /* ---------- Config ----------
+     Paste your n8n Production webhook URL here.
+     Leave it empty to preview the page with a sample result. */
+  const ENDPOINT = "";
+  const MAX_BYTES = 5 * 1024 * 1024;
+
+  document.getElementById("year").textContent = new Date().getFullYear();
+
+  const form = document.getElementById("fitForm");
+  const jd = document.getElementById("jd");
+  const fileInput = document.getElementById("resume");
+  const drop = document.getElementById("drop");
+  const fileName = document.getElementById("fileName");
+  const fileMeta = document.getElementById("fileMeta");
+  const formError = document.getElementById("formError");
+  const submitBtn = document.getElementById("submitBtn");
+  const result = document.getElementById("result");
+
+  let selectedFile = null;
+
+  function setFile(file) {
+    if (!file) return;
+    selectedFile = file;
+    fileName.textContent = file.name;
+    fileMeta.textContent = (file.size / 1024).toFixed(0) + " KB · click to replace";
+    drop.classList.add("has-file");
+    formError.textContent = "";
+  }
+
+  fileInput.addEventListener("change", () => setFile(fileInput.files[0]));
+  ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("dragging"); }));
+  ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("dragging"); }));
+  drop.addEventListener("drop", e => setFile(e.dataTransfer.files[0]));
+
+  function validate() {
+    if (jd.value.trim().length < 80) return "Paste the full job description. It needs at least a few sentences to compare against.";
+    if (!selectedFile) return "Add a resume in PDF format.";
+    const isPdf = selectedFile.type === "application/pdf" || /\.pdf$/i.test(selectedFile.name);
+    if (!isPdf) return "The resume must be a PDF. Export it from Word or Google Docs as PDF and try again.";
+    if (selectedFile.size > MAX_BYTES) return "The resume is larger than 5 MB. Try a compressed export.";
+    return "";
+  }
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function showLoading() {
+    result.innerHTML = "";
+    const box = el("div", "loading");
+    box.append(el("strong", null, "Reading the resume"), document.createTextNode("Comparing it against the job description."), el("div", "scan"));
+    result.append(box);
+  }
+
+  function showError(message) {
+    result.innerHTML = "";
+    const box = el("div", "empty error-box");
+    box.append(el("strong", null, "The analysis didn't finish"), document.createTextNode(message));
+    result.append(box);
+  }
+
+  const BANDS = [
+    { key: "no", name: "Not a Fit", min: 0 },
+    { key: "partial", name: "Partial Fit", min: 50 },
+    { key: "good", name: "Good Fit", min: 70 },
+    { key: "strong", name: "Strong Fit", min: 85 }
+  ];
+  const bandFor = s => [...BANDS].reverse().find(b => s >= b.min) || BANDS[0];
+
+  function skillList(items, cls) {
+    if (!items || !items.length) return el("p", "none", "None identified");
+    const ul = el("ul", "skills " + cls);
+    items.forEach(s => ul.append(el("li", null, s)));
+    return ul;
+  }
+
+  function render(data, isDemo) {
+    const score = Math.max(0, Math.min(100, Math.round(Number(data.fit_score) || 0)));
+    const band = bandFor(score);
+    const verdictName = data.recommendation || band.name;
+    result.innerHTML = "";
+
+    // Score + verdict
+    const row = el("div", "score-row");
+    const num = el("div", "score-num", String(score));
+    num.append(el("small", null, "/100"));
+    const verdict = el("div", "verdict");
+    const vName = el("div", "verdict-name", verdictName);
+    vName.style.color = `var(--band-${band.key})`;
+    verdict.append(vName);
+    if (data.recommendation_reason) verdict.append(el("p", "verdict-reason", data.recommendation_reason));
+    row.append(num, verdict);
+
+    // Band scale
+    const scale = el("div", "scale");
+    const track = el("div", "scale-track");
+    BANDS.forEach(b => {
+      const s = el("span", b.key + (b.key === band.key ? " on" : ""));
+      track.append(s);
+    });
+    const marker = el("div", "marker");
+    marker.style.left = "0%";
+    track.append(marker);
+    const labels = el("div", "scale-labels");
+    BANDS.forEach(b => labels.append(el("span", null, b.name)));
+    scale.append(track, labels);
+
+    // Breakdown
+    const breakdown = el("div", "breakdown");
+    const bd = data.breakdown || {};
+    const bars = [];
+    [["Skills", bd.skills], ["Experience", bd.experience], ["Education", bd.education]].forEach(([label, v]) => {
+      const val = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+      const m = el("div");
+      const head = el("div", "metric-head");
+      head.append(el("span", null, label), el("b", null, v == null ? "–" : String(val)));
+      const bar = el("div", "bar");
+      const fill = el("i");
+      bar.append(fill);
+      m.append(head, bar);
+      breakdown.append(m);
+      bars.push([fill, val]);
+    });
+
+    // Summary
+    const sSum = el("section");
+    sSum.append(el("h2", null, "Summary"), el("p", "summary", data.summary || "No summary returned."));
+
+    // Skills
+    const sMatch = el("section");
+    sMatch.append(el("h2", null, "Matched skills"), skillList(data.matched_skills, "matched"));
+    const sMiss = el("section");
+    sMiss.append(el("h2", null, "Missing skills"), skillList(data.missing_skills, "missing"));
+
+    // Suggestions
+    const sSug = el("section");
+    sSug.append(el("h2", null, "How to strengthen the application"));
+    if (data.suggestions && data.suggestions.length) {
+      const ul = el("ul", "suggestions");
+      data.suggestions.forEach(t => ul.append(el("li", null, t)));
+      sSug.append(ul);
+    } else {
+      sSug.append(el("p", "none", "No suggestions returned."));
+    }
+
+    // Actions
+    const actions = el("div", "actions");
+    const copyBtn = el("button", "ghost", "Copy results");
+    copyBtn.type = "button";
+    copyBtn.addEventListener("click", async () => {
+      const text = [
+        `Fit score: ${score}/100 (${verdictName})`,
+        data.recommendation_reason || "",
+        "", "Summary:", data.summary || "",
+        "", "Matched: " + (data.matched_skills || []).join(", "),
+        "Missing: " + (data.missing_skills || []).join(", "),
+        "", "Suggestions:", ...(data.suggestions || []).map(s => "- " + s)
+      ].join("\n");
+      try { await navigator.clipboard.writeText(text); copyBtn.textContent = "Copied"; }
+      catch { copyBtn.textContent = "Copy not available"; }
+      setTimeout(() => (copyBtn.textContent = "Copy results"), 1800);
+    });
+    const againBtn = el("button", "ghost", "Analyze another resume");
+    againBtn.type = "button";
+    againBtn.addEventListener("click", () => {
+      selectedFile = null; fileInput.value = "";
+      fileName.textContent = "Choose a PDF or drop it here";
+      fileMeta.textContent = "Text-based PDFs work best";
+      drop.classList.remove("has-file");
+      fileInput.focus();
+    });
+    actions.append(copyBtn, againBtn);
+
+    result.append(row, scale, breakdown, sSum, sMatch, sMiss, sSug, actions);
+    if (isDemo) result.append(el("p", "demo-note", "Sample result. Set ENDPOINT in the page script to connect your n8n workflow."));
+
+    // Single reveal: marker and bars travel to their values
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      marker.style.left = score + "%";
+      bars.forEach(([fill, val]) => (fill.style.width = val + "%"));
+    }));
+  }
+
+  const SAMPLE = {
+    fit_score: 78,
+    breakdown: { skills: 82, experience: 70, education: 85 },
+    matched_skills: ["Python", "n8n", "OpenAI API", "FastAPI", "Supabase", "Data pipelines"],
+    missing_skills: ["Airflow", "dbt", "Production on-call experience"],
+    summary: "The candidate shows strong hands-on automation work, with several n8n workflows that combine LLMs, external APIs, and databases. Backend skills in FastAPI and Supabase line up well with the role's integration duties. Professional experience is shorter than the posting asks for, though project depth partly makes up for it.",
+    recommendation: "Good Fit",
+    recommendation_reason: "Core automation and API skills match closely; the main gap is years of production experience.",
+    suggestions: [
+      "Quantify workflow impact, such as hours saved or volume processed.",
+      "Add a project that uses a scheduler like Airflow or a transformation tool like dbt.",
+      "Move the most relevant automation projects to the top of the resume."
+    ]
+  };
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const problem = validate();
+    formError.textContent = problem;
+    if (problem) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Analyzing…";
+    showLoading();
+
+    try {
+      if (!ENDPOINT) {
+        await new Promise(r => setTimeout(r, 1400));
+        render(SAMPLE, true);
+        return;
+      }
+      const body = new FormData();
+      body.append("job_description", jd.value.trim());
+      body.append("resume", selectedFile, selectedFile.name);
+
+      const res = await fetch(ENDPOINT, { method: "POST", body });
+      if (!res.ok) throw new Error(`The server responded with status ${res.status}. Check that the n8n workflow is active.`);
+      let data = await res.json();
+      if (Array.isArray(data)) data = data[0];
+      if (!data || data.fit_score == null) throw new Error("The response had no fit score. If the PDF is a scanned image, export a text-based PDF and try again.");
+      render(data, false);
+    } catch (err) {
+      const msg = err instanceof TypeError
+        ? "Couldn't reach the analysis service. Check the webhook URL and that CORS allows this site."
+        : err.message;
+      showError(msg);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Analyze fit";
+    }
+  });
+</script>
+</body>
+</html>
